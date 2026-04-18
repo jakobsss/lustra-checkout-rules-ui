@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lustra — Checkout Rules</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f6f6f7; color: #1a1a1a; min-height: 100vh; padding: 2.5rem 1.5rem; }
+    .page { max-width: 640px; margin: 0 auto; }
+    .header { margin-bottom: 2rem; }
+    .header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+    .header p { font-size: 14px; color: #6d7175; margin-top: 5px; line-height: 1.5; }
+    .card { background: #fff; border: 1px solid #e1e3e5; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+    .card-title { font-size: 11px; font-weight: 600; color: #6d7175; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 1rem; }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; min-height: 28px; }
+    .tag { display: inline-flex; align-items: center; gap: 6px; background: #f0faf7; border: 1px solid #95c9b4; border-radius: 20px; padding: 4px 8px 4px 12px; font-size: 13px; color: #1a1a1a; }
+    .tag button { background: none; border: none; cursor: pointer; color: #6d7175; font-size: 15px; line-height: 1; padding: 0; display: flex; align-items: center; }
+    .tag button:hover { color: #d82c0d; }
+    .add-row { display: flex; gap: 8px; }
+    .add-row input { flex: 1; height: 36px; padding: 0 12px; border: 1px solid #c9cccf; border-radius: 8px; font-size: 14px; outline: none; background: #fff; color: #1a1a1a; }
+    .add-row input:focus { border-color: #008060; box-shadow: 0 0 0 3px rgba(0,128,96,0.12); }
+    .add-row button { height: 36px; padding: 0 16px; border: 1px solid #c9cccf; border-radius: 8px; background: #fff; font-size: 14px; cursor: pointer; white-space: nowrap; color: #1a1a1a; }
+    .add-row button:hover { background: #f6f6f7; }
+    .help { font-size: 12px; color: #6d7175; margin-top: 10px; line-height: 1.5; }
+    .empty { font-size: 13px; color: #adadad; font-style: italic; }
+    .generate-bar { display: flex; align-items: center; justify-content: flex-end; margin-top: 1.5rem; }
+    .generate-btn { height: 40px; padding: 0 24px; border: none; border-radius: 8px; background: #008060; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .generate-btn:hover { background: #006e52; }
+    .output-card { margin-top: 1.5rem; background: #fff; border: 1px solid #e1e3e5; border-radius: 12px; overflow: hidden; display: none; }
+    .output-card.visible { display: block; }
+    .output-header { display: flex; align-items: center; justify-content: space-between; padding: 0.75rem 1.25rem; border-bottom: 1px solid #e1e3e5; }
+    .output-title { font-size: 11px; font-weight: 600; color: #6d7175; text-transform: uppercase; letter-spacing: 0.06em; }
+    .copy-btn { height: 28px; padding: 0 12px; border: 1px solid #c9cccf; border-radius: 6px; background: #fff; font-size: 12px; cursor: pointer; color: #1a1a1a; }
+    .copy-btn:hover { background: #f6f6f7; }
+    .copy-btn.copied { background: #f0faf7; border-color: #95c9b4; color: #008060; }
+    .output-body { padding: 1.25rem; font-family: "SF Mono", "Fira Code", monospace; font-size: 12px; line-height: 1.7; color: #1a1a1a; white-space: pre; overflow-x: auto; background: #fafafa; }
+    .steps { padding: 1rem 1.25rem; border-top: 1px solid #e1e3e5; }
+    .steps p { font-size: 13px; color: #6d7175; line-height: 1.8; }
+    .steps strong { color: #1a1a1a; }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <h1>Checkout Rules</h1>
+    <p>Configure what B2B customers see at checkout. Generate the mutation, copy it, and run it in GraphiQL.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">B2B customer tags</div>
+    <div class="tag-row" id="tags-row"></div>
+    <div class="add-row">
+      <input type="text" id="tag-input" placeholder="e.g. b2b, wholesale" />
+      <button onclick="addItem('tags')">Add tag</button>
+    </div>
+    <p class="help">Customers with any of these tags are treated as B2B and will see B2B-only methods.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">B2B-only payment methods</div>
+    <div class="tag-row" id="payment-row"></div>
+    <div class="add-row">
+      <input type="text" id="payment-input" placeholder="e.g. Bank Deposit" />
+      <button onclick="addItem('payment')">Add method</button>
+    </div>
+    <p class="help">These methods are shown only to B2B customers. Non-B2B customers see all other payment methods.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">B2B-only shipping methods</div>
+    <div class="tag-row" id="shipping-row"></div>
+    <div class="add-row">
+      <input type="text" id="shipping-input" placeholder="e.g. Shipping, Retail Delivery" />
+      <button onclick="addItem('shipping')">Add method</button>
+    </div>
+    <p class="help">Use the exact name as it appears in checkout. Non-B2B customers see all other shipping methods.</p>
+  </div>
+
+  <div class="generate-bar">
+    <button class="generate-btn" onclick="generate()">Generate mutation</button>
+  </div>
+
+  <div class="output-card" id="output-card">
+    <div class="output-header">
+      <span class="output-title">Paste this into GraphiQL and run it</span>
+      <button class="copy-btn" id="copy-btn" onclick="copyMutation()">Copy</button>
+    </div>
+    <div class="output-body" id="output-body"></div>
+    <div class="steps">
+      <p>
+        <strong>1.</strong> Open the GraphiQL app on your Shopify store<br>
+        <strong>2.</strong> Paste the mutation above<br>
+        <strong>3.</strong> Click Run — changes are live immediately
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SHOP_ID = 'gid://shopify/Shop/91181646148';
+
+  const state = {
+    tags: ['b2b', 'wholesale'],
+    payment: ['Bank Deposit'],
+    shipping: ['Shipping', 'Retail Delivery']
+  };
+
+  function renderRow(key, rowId) {
+    const row = document.getElementById(rowId);
+    if (state[key].length === 0) {
+      row.innerHTML = '<span class="empty">None added yet.</span>';
+      return;
+    }
+    row.innerHTML = state[key].map((v, i) => `
+      <span class="tag">
+        ${esc(v)}
+        <button onclick="removeItem('${key}', ${i})" title="Remove">&#x2715;</button>
+      </span>
+    `).join('');
+  }
+
+  function renderAll() {
+    renderRow('tags', 'tags-row');
+    renderRow('payment', 'payment-row');
+    renderRow('shipping', 'shipping-row');
+  }
+
+  function esc(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function addItem(key) {
+    const ids = { tags: 'tag-input', payment: 'payment-input', shipping: 'shipping-input' };
+    const input = document.getElementById(ids[key]);
+    const val = input.value.trim();
+    if (!val || state[key].includes(val)) { input.focus(); return; }
+    state[key].push(val);
+    input.value = '';
+    renderAll();
+  }
+
+  function removeItem(key, index) {
+    state[key].splice(index, 1);
+    renderAll();
+  }
+
+  ['tag-input','payment-input','shipping-input'].forEach((id, i) => {
+    const keys = ['tags','payment','shipping'];
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') addItem(keys[i]);
+    });
+  });
+
+  function generate() {
+    const config = {
+      b2bIdentification: { useShopifyB2B: true, tags: state.tags },
+      b2bOnlyMethods: state.payment,
+      b2bOnlyShipping: state.shipping
+    };
+
+    const jsonString = JSON.stringify(config);
+    const escaped = jsonString.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+    const mutation = `mutation {
+  metafieldsSet(metafields: [{
+    ownerId: "${SHOP_ID}"
+    namespace: "lustra"
+    key: "checkout_rules"
+    type: "json"
+    value: "${escaped}"
+  }]) {
+    metafields { id value }
+    userErrors { field message }
+  }
+}`;
+
+    document.getElementById('output-body').textContent = mutation;
+    const card = document.getElementById('output-card');
+    card.classList.add('visible');
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    document.getElementById('copy-btn').textContent = 'Copy';
+    document.getElementById('copy-btn').className = 'copy-btn';
+  }
+
+  function copyMutation() {
+    const text = document.getElementById('output-body').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copy-btn');
+      btn.textContent = 'Copied!';
+      btn.className = 'copy-btn copied';
+      setTimeout(() => { btn.textContent = 'Copy'; btn.className = 'copy-btn'; }, 2000);
+    });
+  }
+
+  renderAll();
+</script>
+</body>
+</html>
